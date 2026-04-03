@@ -38,7 +38,7 @@ public class DriverController {
     @PutMapping("/availability")
     public ResponseEntity<ApiResponse<DriverDto>> updateAvailability(
             @AuthenticationPrincipal User user,
-            @RequestParam boolean status) {
+            @RequestParam("status") boolean status) {
         DriverDto dto = driverService.updateAvailability(user, status);
         return ResponseEntity.ok(ApiResponse.success("Availability updated", dto));
     }
@@ -56,8 +56,8 @@ public class DriverController {
     @PutMapping("/respond/{rideId}")
     public ResponseEntity<ApiResponse<RideDto>> respondToRide(
             @AuthenticationPrincipal User user,
-            @PathVariable Long rideId,
-            @RequestParam boolean accept) {
+            @PathVariable("rideId") Long rideId,
+            @RequestParam("accept") boolean accept) {
         RideDto dto = driverService.respondToRide(user, rideId, accept);
         return ResponseEntity.ok(ApiResponse.success(accept ? "Ride accepted" : "Ride rejected", dto));
     }

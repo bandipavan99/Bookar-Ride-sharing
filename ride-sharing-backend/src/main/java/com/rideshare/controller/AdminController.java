@@ -41,8 +41,8 @@ public class AdminController {
 
     @PutMapping("/users/{userId}/block")
     public ResponseEntity<ApiResponse<UserDto>> blockUser(
-            @PathVariable Long userId,
-            @RequestParam boolean block) {
+            @PathVariable("userId") Long userId,
+            @RequestParam("block") boolean block) {
         UserDto dto = adminService.blockUser(userId, block);
         return ResponseEntity.ok(ApiResponse.success(block ? "User blocked" : "User unblocked", dto));
     }

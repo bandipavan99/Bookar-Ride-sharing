@@ -12,6 +12,7 @@ import com.rideshare.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -48,6 +49,7 @@ public class UserService {
         return mapToDto(currentUser);
     }
 
+    @Transactional(readOnly = true)
     public List<RideDto> getRideHistory(User currentUser) {
         return rideRepository.findByUserOrderByRideTimeDesc(currentUser)
                 .stream()

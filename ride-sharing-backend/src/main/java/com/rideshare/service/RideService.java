@@ -84,6 +84,7 @@ public class RideService {
         return mapToDto(ride);
     }
 
+    @Transactional(readOnly = true)
     public RideDto getRideById(Long rideId) {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride not found: " + rideId));
@@ -106,17 +107,26 @@ public class RideService {
 
         if (newStatus == Ride.RideStatus.COMPLETED) {
             ride.setCompletedAt(LocalDateTime.now());
-            // Update payment
-            Optional<Payment> paymentOpt = paymentRepository.findByRide(ride);
+
+            // Save ride first so payment lookup by rideId works correctly
+            ride = rideRepository.saveAndFlush(ride);
+
+            // Update payment using rideId-based query to avoid entity proxy issues
+            Optional<Payment> paymentOpt = paymentRepository.findByRide_RideId(rideId);
             paymentOpt.ifPresent(payment -> {
                 payment.setPaymentStatus(Payment.PaymentStatus.COMPLETED);
                 payment.setPaidAt(LocalDateTime.now());
                 paymentRepository.save(payment);
             });
-            // Update driver stats
+
+            // Update driver stats — re-fetch from DB to avoid stale proxy state
             if (ride.getDriver() != null) {
-                Driver driver = ride.getDriver();
-                driver.setTotalRides(driver.getTotalRides() + 1);
+                Long driverId = ride.getDriver().getDriverId();
+                Driver driver = driverRepository.findById(driverId)
+                        .orElse(ride.getDriver());
+
+                Integer currentRides = driver.getTotalRides() != null ? driver.getTotalRides() : 0;
+                driver.setTotalRides(currentRides + 1);
 
                 BigDecimal currentEarnings = driver.getTotalEarnings() != null ? driver.getTotalEarnings()
                         : BigDecimal.ZERO;
@@ -125,12 +135,15 @@ public class RideService {
 
                 driverRepository.save(driver);
             }
+
+            return mapToDto(ride);
         }
 
         rideRepository.save(ride);
         return mapToDto(ride);
     }
 
+    @Transactional(readOnly = true)
     public List<RideDto> getAllRides() {
         return rideRepository.findAll()
                 .stream()

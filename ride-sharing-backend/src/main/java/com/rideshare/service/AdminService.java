@@ -49,7 +49,8 @@ public class AdminService {
                                                 .vehicleNumber(d.getVehicleNumber())
                                                 .availabilityStatus(d.isAvailabilityStatus())
                                                 .rating(d.getRating())
-                                                .totalRides(d.getTotalRides())
+                                                .totalRides(d.getTotalRides() != null ? d.getTotalRides() : 0)
+                                                .totalEarnings(d.getTotalEarnings() != null ? d.getTotalEarnings() : java.math.BigDecimal.ZERO)
                                                 .build())
                                 .collect(Collectors.toList());
         }
@@ -108,7 +109,7 @@ public class AdminService {
 
         public Map<String, Object> getDashboardStats() {
                 Map<String, Object> stats = new HashMap<>();
-                stats.put("totalUsers", userRepository.count());
+                stats.put("totalUsers", userRepository.countByRoleNot(User.Role.ADMIN));
                 stats.put("totalDrivers", driverRepository.count());
                 stats.put("totalRides", rideRepository.count());
                 stats.put("activeRides", rideRepository.countByRideStatus(

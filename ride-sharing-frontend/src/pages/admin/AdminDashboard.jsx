@@ -157,7 +157,7 @@ export default function AdminDashboard() {
                     <div className="table-wrapper">
                         <table>
                             <thead>
-                                <tr><th>ID</th><th>Name</th><th>Vehicle</th><th>Number</th><th>Status</th><th>Rating</th><th>Rides</th></tr>
+                                <tr><th>ID</th><th>Name</th><th>Vehicle</th><th>Number</th><th>Status</th><th>Rating</th><th>Rides</th><th>Earnings</th></tr>
                             </thead>
                             <tbody>
                                 {drivers.map(d => (
@@ -176,6 +176,7 @@ export default function AdminDashboard() {
                                         </td>
                                         <td>⭐ {d.rating}</td>
                                         <td>{d.totalRides}</td>
+                                        <td style={{ fontWeight: 700, color: 'var(--primary)' }}>₹{d.totalEarnings != null ? Number(d.totalEarnings).toFixed(0) : '0'}</td>
                                     </tr>
                                 ))}
                             </tbody>

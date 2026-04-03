@@ -27,7 +27,14 @@ export default function RideTracking() {
 
     useEffect(() => {
         fetchRide()
-        const interval = setInterval(fetchRide, 8000)
+        const interval = setInterval(() => {
+            // Stop polling once ride is in a terminal state
+            if (ride && (ride.rideStatus === 'COMPLETED' || ride.rideStatus === 'CANCELLED')) {
+                clearInterval(interval)
+                return
+            }
+            fetchRide()
+        }, 8000)
         return () => clearInterval(interval)
     }, [rideId])
 

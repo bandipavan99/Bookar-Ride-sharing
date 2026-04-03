@@ -16,7 +16,7 @@ public class RegisterRequest {
     @Size(min = 6, message = "Password must be at least 6 characters")
     private String password;
 
-    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Invalid phone number")
+    @Pattern(regexp = "^$|^[6-9]\\d{9}$", message = "Phone must be a valid 10-digit Indian number (or leave blank)")
     private String phone;
 
     private String role; // USER or DRIVER

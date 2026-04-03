@@ -68,6 +68,7 @@ public class DriverService {
         return mapToDto(driver);
     }
 
+    @Transactional(readOnly = true)
     public List<RideDto> getDriverRides(User user) {
         Driver driver = driverRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Driver profile not found"));
@@ -98,24 +99,29 @@ public class DriverService {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride not found: " + rideId));
 
-        if (ride.getRideStatus() != Ride.RideStatus.REQUESTED && ride.getRideStatus() != Ride.RideStatus.ACCEPTED) {
-            throw new BadRequestException("Ride is not in a state to respond to");
-        }
-
         if (accept) {
+            // Only allow accepting a ride that has not yet been assigned to a driver
+            if (ride.getRideStatus() != Ride.RideStatus.REQUESTED) {
+                throw new BadRequestException("This ride has already been accepted or is not available");
+            }
             ride.setDriver(driver);
             ride.setRideStatus(Ride.RideStatus.ACCEPTED);
         } else {
-            if (ride.getDriver() != null && ride.getDriver().getDriverId().equals(driver.getDriverId())) {
-                ride.setDriver(null);
-                ride.setRideStatus(Ride.RideStatus.CANCELLED);
-            } else {
+            // Only the assigned driver can cancel/reject
+            if (ride.getRideStatus() != Ride.RideStatus.ACCEPTED) {
+                throw new BadRequestException("Ride is not in an accepted state to cancel");
+            }
+            if (ride.getDriver() == null || !ride.getDriver().getDriverId().equals(driver.getDriverId())) {
                 throw new UnauthorizedException("You are not assigned to this ride");
             }
+            ride.setDriver(null);
+            ride.setRideStatus(Ride.RideStatus.REQUESTED);
         }
 
         rideRepository.save(ride);
-        return rideService.mapToDto(ride);
+        // Re-fetch from DB to avoid returning a stale/proxy entity
+        Ride saved = rideRepository.findById(rideId).orElse(ride);
+        return rideService.mapToDto(saved);
     }
 
     public List<DriverDto> getAllDrivers() {

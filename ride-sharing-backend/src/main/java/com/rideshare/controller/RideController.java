@@ -29,15 +29,15 @@ public class RideController {
     }
 
     @GetMapping("/{rideId}")
-    public ResponseEntity<ApiResponse<RideDto>> getRide(@PathVariable Long rideId) {
+    public ResponseEntity<ApiResponse<RideDto>> getRide(@PathVariable("rideId") Long rideId) {
         return ResponseEntity.ok(ApiResponse.success(rideService.getRideById(rideId)));
     }
 
     @PutMapping("/{rideId}/status")
     public ResponseEntity<ApiResponse<RideDto>> updateStatus(
             @AuthenticationPrincipal User user,
-            @PathVariable Long rideId,
-            @RequestParam String status) {
+            @PathVariable("rideId") Long rideId,
+            @RequestParam("status") String status) {
         try {
             RideDto dto = rideService.updateRideStatus(rideId, status, user);
             return ResponseEntity.ok(ApiResponse.success("Ride status updated", dto));

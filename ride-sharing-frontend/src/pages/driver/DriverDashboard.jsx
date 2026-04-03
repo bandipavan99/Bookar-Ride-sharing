@@ -6,21 +6,28 @@ import toast from 'react-hot-toast'
 export default function DriverDashboard() {
     const [profile, setProfile] = useState(null)
     const [earnings, setEarnings] = useState(null)
-    const [pendingRides, setPendingRides] = useState([])
+    const [requestedRides, setRequestedRides] = useState([])
+    const [acceptedRides, setAcceptedRides] = useState([])
     const [loading, setLoading] = useState(true)
     const [toggling, setToggling] = useState(false)
 
     const fetchAll = async () => {
         try {
-            const [profRes, earnRes, ridesRes] = await Promise.all([
+            const [profRes, earnRes, allRidesRes] = await Promise.all([
                 driverApi.getProfile(),
                 driverApi.getEarnings(),
-                driverApi.getDriverRides(),
+                rideApi.getAllRides(),
             ])
-            setProfile(profRes.data.data)
+            const prof = profRes.data.data
+            setProfile(prof)
             setEarnings(earnRes.data.data)
-            const allRides = ridesRes.data.data || []
-            setPendingRides(allRides.filter(r => r.rideStatus === 'REQUESTED' || r.rideStatus === 'ACCEPTED'))
+            const allRides = allRidesRes.data.data || []
+            // REQUESTED rides (unassigned) — any online driver can accept these
+            setRequestedRides(allRides.filter(r => r.rideStatus === 'REQUESTED'))
+            // ACCEPTED rides assigned to THIS driver only
+            setAcceptedRides(allRides.filter(r =>
+                r.rideStatus === 'ACCEPTED' && r.driverId === prof.driverId
+            ))
         } catch (err) {
             if (err.response?.status === 404) {
                 setProfile(null)
@@ -38,6 +45,7 @@ export default function DriverDashboard() {
             const res = await driverApi.updateAvailability(!profile.availabilityStatus)
             setProfile(res.data.data)
             toast.success(res.data.data.availabilityStatus ? '🟢 You are now online!' : '🔴 You are now offline')
+            fetchAll()
         } catch {
             toast.error('Failed to update availability')
         } finally {
@@ -45,13 +53,13 @@ export default function DriverDashboard() {
         }
     }
 
-    const respondToRide = async (rideId, accept) => {
+    const acceptRide = async (rideId) => {
         try {
-            await driverApi.respondToRide(rideId, accept)
-            toast.success(accept ? '✅ Ride accepted!' : '❌ Ride rejected')
+            await driverApi.respondToRide(rideId, true)
+            toast.success('✅ Ride accepted!')
             fetchAll()
-        } catch {
-            toast.error('Failed to respond to ride')
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to accept ride')
         }
     }
 
@@ -146,20 +154,20 @@ export default function DriverDashboard() {
                     </div>
                 </div>
 
-                {/* Pending ride requests */}
-                <div>
+                {/* New Ride Requests (REQUESTED - unassigned) */}
+                <div style={{ marginBottom: '32px' }}>
                     <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
-                        🔔 Ride Requests ({pendingRides.length})
+                        🔔 New Ride Requests ({requestedRides.length})
                     </h2>
-                    {pendingRides.length === 0 ? (
+                    {requestedRides.length === 0 ? (
                         <div className="card empty-state" style={{ padding: '32px' }}>
                             <div className="empty-icon" style={{ fontSize: '40px' }}>😴</div>
-                            <div className="empty-text" style={{ fontSize: '16px' }}>No pending requests</div>
+                            <div className="empty-text" style={{ fontSize: '16px' }}>No new ride requests</div>
                             <p>Go online and ride requests will appear here</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {pendingRides.map(ride => (
+                            {requestedRides.map(ride => (
                                 <div key={ride.rideId} className="card">
                                     <div className="flex-between" style={{ flexWrap: 'wrap', gap: '16px' }}>
                                         <div>
@@ -172,35 +180,54 @@ export default function DriverDashboard() {
                                                 </div>
                                             </div>
                                         </div>
-                                        {ride.rideStatus === 'REQUESTED' && (
-                                            <div style={{ display: 'flex', gap: '10px' }}>
-                                                <button
-                                                    id={`accept-ride-${ride.rideId}`}
-                                                    className="btn btn-success"
-                                                    onClick={() => respondToRide(ride.rideId, true)}
-                                                >✅ Accept</button>
-                                                <button
-                                                    id={`reject-ride-${ride.rideId}`}
-                                                    className="btn btn-danger"
-                                                    onClick={() => respondToRide(ride.rideId, false)}
-                                                >❌ Reject</button>
-                                            </div>
-                                        )}
-                                        {ride.rideStatus === 'ACCEPTED' && (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                                                <span className="badge badge-accepted">✅ ACCEPTED</span>
-                                                <button
-                                                    className="btn btn-primary btn-sm"
-                                                    onClick={() => handleCompleteRide(ride.rideId)}
-                                                >🏁 Complete Ride</button>
-                                            </div>
-                                        )}
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            <button
+                                                id={`accept-ride-${ride.rideId}`}
+                                                className="btn btn-success"
+                                                onClick={() => acceptRide(ride.rideId)}
+                                            >✅ Accept</button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+
+                {/* Active Rides (ACCEPTED - this driver's rides) */}
+                {acceptedRides.length > 0 && (
+                    <div>
+                        <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
+                            🚗 Your Active Rides ({acceptedRides.length})
+                        </h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {acceptedRides.map(ride => (
+                                <div key={ride.rideId} className="card">
+                                    <div className="flex-between" style={{ flexWrap: 'wrap', gap: '16px' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 700, marginBottom: '8px' }}>Ride #{ride.rideId}</div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <div style={{ fontSize: '14px' }}>🟢 <strong>From:</strong> {ride.pickupLocation}</div>
+                                                <div style={{ fontSize: '14px' }}>🔴 <strong>To:</strong> {ride.dropLocation}</div>
+                                                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                                    👤 {ride.userName} · 💰 ₹{ride.fare} · {ride.distanceKm}km
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                                            <span className="badge badge-accepted">✅ ACCEPTED</span>
+                                            <button
+                                                id={`complete-ride-${ride.rideId}`}
+                                                className="btn btn-primary btn-sm"
+                                                onClick={() => handleCompleteRide(ride.rideId)}
+                                            >🏁 Complete Ride</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )
