@@ -1,9 +1,11 @@
 import axios from 'axios'
 
+// VITE_API_BASE_URL is set in Vercel env vars to point to the Render backend.
+// Falls back to '/api' for local dev (uses vite proxy).
 const axiosInstance = axios.create({
-    baseURL: '/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
     headers: { 'Content-Type': 'application/json' },
-    timeout: 15000,
+    timeout: 30000, // 30s to account for Render free tier cold starts
 })
 
 // Request interceptor – attach token
